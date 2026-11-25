@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Job Posting Checker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --paper: #f4f6f9;
+    --card: #ffffff;
+    --ink: #14213d;
+    --muted: #5b6577;
+    --line: #d5dbe5;
+    --accent: #14213d;
+    --danger: #c0182f;
+    --danger-bg: #fdecef;
+    --safe: #0f766e;
+    --safe-bg: #e4f4f2;
+    --radius: 6px;
+    --head: "Bricolage Grotesque", "Segoe UI", sans-serif;
+    --body: "Source Sans 3", "Segoe UI", Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #0e1524;
+      --card: #172036;
+      --ink: #e8ecf4;
+      --muted: #9aa5ba;
+      --line: #2c3957;
+      --accent: #e8ecf4;
+      --danger: #ff6b7d;
+      --danger-bg: #3a1c27;
+      --safe: #4fd1c0;
+      --safe-bg: #123433;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 17px;
+    line-height: 1.55;
+  }
+
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 40px 24px 64px; }
+
+  header { max-width: 640px; margin-bottom: 32px; }
+  h1 {
+    font-family: var(--head);
+    font-weight: 700;
+    font-size: clamp(2rem, 4.5vw, 3rem);
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    margin: 0 0 12px;
+  }
+  header p { margin: 0; color: var(--muted); }
+
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+    gap: 28px;
+    align-items: start;
+  }
+  @media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 24px;
+  }
+  h2 {
+    font-family: var(--head);
+    font-size: 1.2rem;
+    margin: 0 0 4px;
+  }
+  .hint { color: var(--muted); font-size: 0.93rem; margin: 0 0 18px; }
+
+  label { display: block; font-weight: 600; font-size: 0.95rem; margin: 0 0 6px; }
+  .field { margin-bottom: 16px; }
+
+  input[type="text"], textarea, select {
+    width: 100%;
+    font: inherit;
+    color: var(--ink);
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+  }
+  textarea { resize: vertical; min-height: 96px; }
+  input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible, .check:focus-within {
+    outline: 3px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  @media (max-width: 560px) { .row { grid-template-columns: 1fr; } }
+
+  fieldset { border: 0; padding: 0; margin: 0 0 20px; }
+  legend { font-weight: 600; font-size: 0.95rem; padding: 0; margin-bottom: 8px; }
+  .checks { display: flex; flex-wrap: wrap; gap: 10px; }
+  .check {
+    display: flex; align-items: center; gap: 8px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 8px 12px;
+    background: var(--paper);
+    cursor: pointer;
+    font-size: 0.95rem;
+  }
+  .check input { accent-color: var(--accent); width: 16px; height: 16px; margin: 0; }
+
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  button {
+    font: inherit; font-weight: 600;
+    border-radius: var(--radius);
+    padding: 11px 20px;
+    cursor: pointer;
+    border: 1px solid var(--accent);
+  }
+  .primary { background: var(--accent); color: var(--paper); }
+  .primary:disabled { opacity: 0.6; cursor: wait; }
+  .ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+  .ghost:hover { border-color: var(--ink); }
+
+  /* Result panel */
+  .result { position: sticky; top: 24px; min-height: 360px; }
+  .empty { color: var(--muted); padding: 24px 0; }
+  .empty strong { display: block; color: var(--ink); font-family: var(--head); font-size: 1.1rem; margin-bottom: 4px; }
+
+  .stamp {
+    display: inline-block;
+    font-family: var(--head);
+    font-weight: 700;
+    font-size: 1.7rem;
+    line-height: 1.1;
+    padding: 10px 18px;
+    border: 4px solid currentColor;
+    border-radius: 8px;
+    transform: rotate(-3deg);
+    margin: 6px 0 20px;
+  }
+  .stamp.fake { color: var(--danger); background: var(--danger-bg); }
+  .stamp.real { color: var(--safe); background: var(--safe-bg); }
+  .stamp.land { animation: land 0.35s cubic-bezier(.2,.9,.3,1.2); }
+  @keyframes land {
+    from { transform: rotate(-3deg) scale(1.5); opacity: 0; }
+    to   { transform: rotate(-3deg) scale(1);   opacity: 1; }
+  }
+
+  .score { font-family: var(--head); font-size: 1.05rem; margin: 0 0 8px; }
+  .meter {
+    height: 12px;
+    background: var(--line);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .meter > span {
+    display: block; height: 100%; width: 0;
+    background: var(--safe);
+    transition: width 0.5s ease;
+  }
+  .meter.fake > span { background: var(--danger); }
+  .scale { display: flex; justify-content: space-between; color: var(--muted); font-size: 0.85rem; margin-top: 6px; }
+
+  .explain { margin: 20px 0 0; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.95rem; }
+  .explain p { margin: 0 0 8px; }
+
+  .error {
+    background: var(--danger-bg);
+    color: var(--danger);
+    border: 1px solid var(--danger);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    font-size: 0.95rem;
+  }
+
+  .spinner {
+    width: 14px; height: 14px; display: inline-block;
+    border: 2px solid currentColor; border-right-color: transparent;
+    border-radius: 50%; vertical-align: -2px; margin-right: 8px;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .stamp.land, .spinner { animation: none; }
+    .meter > span { transition: none; }
+  }
+</style>
+</head>
+
+<body>
+<div class="wrap">
+  <header>
+    <h1>Is this job posting real?</h1>
+    <p>Paste a job posting and get a fraud check from the model trained on the Kaggle fake job postings dataset.</p>
+  </header>
+
+  <div class="layout">
+    <!-- INPUT -->
+    <section class="panel" aria-labelledby="form-title">
+      <h2 id="form-title">Job posting details</h2>
+      <p class="hint">Only the job description is required. The more you fill in, the better the check.</p>
+
+      <form id="form" novalidate>
+        <div class="field">
+          <label for="title">Job title</label>
+          <input type="text" id="title" placeholder="e.g. Data Entry Clerk (Work From Home)">
+        </div>
+
+        <div class="field">
+          <label for="company_profile">Company profile</label>
+          <textarea id="company_profile" placeholder="What the company says about itself"></textarea>
+        </div>
+
+        <div class="field">
+          <label for="description">Job description <span aria-hidden="true">*</span></label>
+          <textarea id="description" required style="min-height:140px" placeholder="Paste the full job description"></textarea>
+        </div>
+
+        <div class="field">
+          <label for="requirements">Requirements</label>
+          <textarea id="requirements" placeholder="Skills, experience, qualifications"></textarea>
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label for="employment_type">Employment type</label>
+            <select id="employment_type">
+              <option>Unknown</option><option>Full-time</option><option>Part-time</option>
+              <option>Contract</option><option>Temporary</option><option>Other</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="required_experience">Experience level</label>
+            <select id="required_experience">
+              <option>Unknown</option><option>Internship</option><option>Entry level</option>
+              <option>Associate</option><option>Mid-Senior level</option><option>Director</option>
+              <option>Executive</option><option>Not Applicable</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="required_education">Education</label>
+            <select id="required_education">
+              <option>Unknown</option><option>Unspecified</option><option>High School or equivalent</option>
+              <option>Some College Coursework Completed</option><option>Certification</option>
+              <option>Vocational</option><option>Associate Degree</option><option>Bachelor's Degree</option>
+              <option>Master's Degree</option><option>Doctorate</option><option>Professional</option>
+            </select>
+          </div>
+        </div>
+
+        <fieldset>
+          <legend>The posting has</legend>
+          <div class="checks">
+            <label class="check"><input type="checkbox" id="has_company_logo"> Company logo</label>
+            <label class="check"><input type="checkbox" id="has_questions"> Screening questions</label>
+            <label class="check"><input type="checkbox" id="telecommuting"> Remote work</label>
+          </div>
+        </fieldset>
+
+        <div class="actions">
+          <button type="submit" class="primary" id="submit">Check posting</button>
+          <button type="button" class="ghost" id="ex-fake">Try a suspicious example</button>
+          <button type="button" class="ghost" id="ex-real">Try a genuine example</button>
+          <button type="button" class="ghost" id="clear">Clear</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- RESULT -->
+    <section class="panel result" aria-live="polite" aria-labelledby="result-title">
+      <h2 id="result-title">Result</h2>
+      <div id="result">
+        <div class="empty">
+          <strong>Nothing checked yet</strong>
+          Fill in the posting and select “Check posting”.
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+  // If you open this file directly (double-click) instead of through Flask,
+  // set this to your server address, e.g. "http://127.0.0.1:5000".
+  const API_BASE = "";
+
+  const $ = (id) => document.getElementById(id);
+  const form = $("form");
+  const resultBox = $("result");
+  const submitBtn = $("submit");
+
+  const EXAMPLES = {
+    fake: {
+      title: "Data Entry Clerk - Work From Home",
+      company_profile: "",
+      description: "Earn $5000 per week from home! No experience needed. Just send your bank details and a small registration fee to get started today. Limited positions available, apply immediately.",
+      requirements: "Computer with internet. Must be able to start immediately.",
+      employment_type: "Unknown", required_experience: "Unknown", required_education: "Unknown",
+      has_company_logo: false, has_questions: false, telecommuting: true
+    },
+    real: {
+      title: "Marketing Intern",
+      company_profile: "We are a food and home-goods community with a team of 40 based in New York, working with thousands of independent makers and cooks.",
+      description: "Join our marketing team for a 3-month internship. You will help plan social campaigns, write newsletter copy and report on weekly performance, working alongside two senior marketers.",
+      requirements: "Currently studying marketing, communications or a related field. Strong writing skills and familiarity with social media tools.",
+      employment_type: "Other", required_experience: "Internship", required_education: "Bachelor's Degree",
+      has_company_logo: true, has_questions: true, telecommuting: false
+    }
+  };
+
+  function fill(data) {
+    ["title","company_profile","description","requirements",
+     "employment_type","required_experience","required_education"].forEach(k => $(k).value = data[k]);
+    ["has_company_logo","has_questions","telecommuting"].forEach(k => $(k).checked = data[k]);
+  }
+
+  function showEmpty() {
+    resultBox.innerHTML = `<div class="empty"><strong>Nothing checked yet</strong>Fill in the posting and select “Check posting”.</div>`;
+  }
+
+  function showError(msg) {
+    resultBox.innerHTML = "";
+    const div = document.createElement("div");
+    div.className = "error";
+    div.setAttribute("role", "alert");
+    div.textContent = msg;
+    resultBox.appendChild(div);
+  }
+
+  function showResult(data) {
+    const fake = data.prediction === 1;
+    const pct = Math.round(data.fraud_probability * 1000) / 10;
+
+    resultBox.innerHTML = `
+      <div class="stamp ${fake ? "fake" : "real"} land">${fake ? "Likely fake" : "Looks genuine"}</div>
+      <p class="score">Fraud risk: <strong>${pct}%</strong></p>
+      <div class="meter ${fake ? "fake" : ""}" role="img" aria-label="Fraud risk ${pct} percent">
+        <span></span>
+      </div>
+      <div class="scale"><span>Low risk</span><span>High risk</span></div>
+      <div class="explain">
+        <p>${fake
+          ? "The wording and details of this posting resemble fraudulent postings in the training data. Do not send money, bank details or ID documents."
+          : "This posting resembles genuine postings in the training data. Still confirm the company on its official website before you apply."}</p>
+        <p>This is a statistical model, not proof. Treat it as one signal.</p>
+      </div>`;
+
+    // animate meter after insertion
+    requestAnimationFrame(() => {
+      resultBox.querySelector(".meter > span").style.width = Math.max(pct, 2) + "%";
+    });
+  }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    if (!$("description").value.trim()) {
+      showError("Add the job description first. The model needs text to check.");
+      $("description").focus();
+      return;
+    }
+
+    const payload = {
+      title: $("title").value,
+      company_profile: $("company_profile").value,
+      description: $("description").value,
+      requirements: $("requirements").value,
+      employment_type: $("employment_type").value,
+      required_experience: $("required_experience").value,
+      required_education: $("required_education").value,
+      has_company_logo: $("has_company_logo").checked ? 1 : 0,
+      has_questions: $("has_questions").checked ? 1 : 0,
+      telecommuting: $("telecommuting").checked ? 1 : 0
+    };
+
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner"></span>Checking';
+
+    try {
+      const res = await fetch(API_BASE + "/predict", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "The server returned an error.");
+      showResult(data);
+    } catch (err) {
+      showError(err instanceof TypeError
+        ? "Could not reach the server. Start it with “python app.py” and open http://127.0.0.1:5000."
+        : err.message);
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Check posting";
+    }
+  });
+
+  $("ex-fake").addEventListener("click", () => fill(EXAMPLES.fake));
+  $("ex-real").addEventListener("click", () => fill(EXAMPLES.real));
+  $("clear").addEventListener("click", () => {
+    form.reset();
+    showEmpty();
+  });
+</script>
+</body>
+</html>
